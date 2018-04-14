@@ -37,6 +37,9 @@
 #include <assert.h>
 #include <unistd.h>
 #include <time.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <sys/mman.h>
 
 #include <pthread.h>
 #include <malloc.h>
@@ -44,6 +47,9 @@
 #if ON_WINDOWS
 #include <windows.h>
 #endif
+
+#define TEST_PMEM 1
+#define TEST_PATH "/mnt/pmem/test.big"
 
 // -----------------------------------------------------------------------------
 // --- Global Settings and Variables
@@ -727,6 +733,7 @@ int main(int argc, char* argv[])
     // *** parse command line options
 
     int opt;
+    int fd = -1;
 
     while ( (opt = getopt(argc, argv, "hf:M:o:p:P:Qs:S:")) != -1 )
     {
@@ -877,6 +884,18 @@ int main(int argc, char* argv[])
 
     // allocate memory area
 
+
+#ifdef TEST_PMEM
+
+    fd = open(TEST_PATH, O_CREAT|O_RDWR, 0666);
+    if (fd < 0)
+      return -1;
+    g_memarea = (char *)mmap(NULL, g_memsize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+
+    if (g_memarea == MAP_FAILED)
+      return -1;
+#else
+
 #if HAVE_POSIX_MEMALIGN
 
     if (posix_memalign((void**)&g_memarea, 32, g_memsize) != 0) {
@@ -884,10 +903,9 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-#else
-
     g_memarea = (char*)malloc(g_memsize);
 
+#endif
 #endif
 
     // fill memory with junk, but this allocates physical memory
