@@ -75,6 +75,100 @@ void ScanWrite64PtrSimpleLoop(char* memarea, size_t size, size_t repeats)
 
 REGISTER(ScanWrite64PtrSimpleLoop, 8, 8, 1);
 
+#define SFENCE 1
+
+#define FLUSH CLFLUSH
+
+#define CLFLUSH \
+        "clflush    (%%rcx) \n" \
+        "clflush    15*8(%%rcx) \n"
+
+#define CLFLUSHOPT
+
+void __ScanWrite64PtrUnrollLoop_clflush(char* memarea, size_t size, size_t repeats)
+{
+    asm volatile(
+        "mov    $0xC0FFEEEEBABE0000, %%rax \n" // rax = test value
+        "1: \n" // start of repeat loop
+        "mov    %[memarea], %%rcx \n"   // rcx = reset loop iterator
+        "2: \n" // start of write loop
+        "mov    %%rax, 0*8(%%rcx) \n"
+        "mov    %%rax, 1*8(%%rcx) \n"
+        "mov    %%rax, 2*8(%%rcx) \n"
+        "mov    %%rax, 3*8(%%rcx) \n"
+        "mov    %%rax, 4*8(%%rcx) \n"
+        "mov    %%rax, 5*8(%%rcx) \n"
+        "mov    %%rax, 6*8(%%rcx) \n"
+        "mov    %%rax, 7*8(%%rcx) \n"
+        "mov    %%rax, 8*8(%%rcx) \n"
+        "mov    %%rax, 9*8(%%rcx) \n"
+        "mov    %%rax, 10*8(%%rcx) \n"
+        "mov    %%rax, 11*8(%%rcx) \n"
+        "mov    %%rax, 12*8(%%rcx) \n"
+        "mov    %%rax, 13*8(%%rcx) \n"
+        "mov    %%rax, 14*8(%%rcx) \n"
+        "mov    %%rax, 15*8(%%rcx) \n"
+        "clflush    (%%rcx) \n"
+        "clflush    15*8(%%rcx) \n"
+#ifdef SFENCE
+        "sfence \n"
+#endif
+        "add    $16*8, %%rcx \n"
+        // test write loop condition
+        "cmp    %[end], %%rcx \n"       // compare to end iterator
+        "jb     2b \n"
+        // test repeat loop condition
+        "dec    %[repeats] \n"          // until repeats = 0
+        "jnz    1b \n"
+        : [repeats] "+r" (repeats)
+        : [memarea] "r" (memarea), [end] "r" (memarea+size)
+        : "rax", "rcx", "cc", "memory");
+
+
+
+void __ScanWrite64PtrUnrollLoop_movnti(char* memarea, size_t size, size_t repeats)
+{
+    asm volatile(
+        "mov    $0xC0FFEEEEBABE0000, %%rax \n" // rax = test value
+        "1: \n" // start of repeat loop
+        "mov    %[memarea], %%rcx \n"   // rcx = reset loop iterator
+        "2: \n" // start of write loop
+        "movnti    %%rax, 0*8(%%rcx) \n"
+        "movnti    %%rax, 1*8(%%rcx) \n"
+        "movnti    %%rax, 2*8(%%rcx) \n"
+        "movnti    %%rax, 3*8(%%rcx) \n"
+        "movnti    %%rax, 4*8(%%rcx) \n"
+        "movnti    %%rax, 5*8(%%rcx) \n"
+        "movnti    %%rax, 6*8(%%rcx) \n"
+        "movnti    %%rax, 7*8(%%rcx) \n"
+        "movnti    %%rax, 8*8(%%rcx) \n"
+        "movnti    %%rax, 9*8(%%rcx) \n"
+        "movnti    %%rax, 10*8(%%rcx) \n"
+        "movnti    %%rax, 11*8(%%rcx) \n"
+        "movnti    %%rax, 12*8(%%rcx) \n"
+        "movnti    %%rax, 13*8(%%rcx) \n"
+        "movnti    %%rax, 14*8(%%rcx) \n"
+        "movnti    %%rax, 15*8(%%rcx) \n"
+#ifdef SFENCE
+        "sfence \n"
+#endif
+        "add    $16*8, %%rcx \n"
+        // test write loop condition
+        "cmp    %[end], %%rcx \n"       // compare to end iterator
+        "jb     2b \n"
+        // test repeat loop condition
+        "dec    %[repeats] \n"          // until repeats = 0
+        "jnz    1b \n"
+        : [repeats] "+r" (repeats)
+        : [memarea] "r" (memarea), [end] "r" (memarea+size)
+        : "rax", "rcx", "cc", "memory");
+}
+
+REGISTER(ScanWrite64PtrUnrollLoop, 8, 8, 16);
+
+
+
+
 // 64-bit writer in an unrolled loop (Assembler version)
 void ScanWrite64PtrUnrollLoop(char* memarea, size_t size, size_t repeats)
 {
@@ -214,7 +308,44 @@ void ScanWrite64IndexSimpleLoop(char* memarea, size_t size, size_t repeats)
 REGISTER(ScanWrite64IndexSimpleLoop, 8, 8, 1);
 
 // 64-bit writer in an indexed unrolled loop (Assembler version)
-void ScanWrite64IndexUnrollLoop(char* memarea, size_t size, size_t repeats)
+void __ScanWrite64IndexUnrollLoop_noop(char* memarea, size_t size, size_t repeats)
+{
+    asm volatile(
+        "mov    $0xC0FFEEEEBABE0000, %%rax \n" // rax = test value
+        "1: \n" // start of repeat loop
+        "xor    %%rcx, %%rcx \n"        // rcx = reset index
+        "2: \n" // start of write loop
+        "mov    %%rax, 0*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 1*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 2*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 3*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 4*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 5*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 6*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 7*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 8*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 9*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 10*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 11*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 12*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 13*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 14*8(%[memarea],%%rcx) \n"
+        "mov    %%rax, 15*8(%[memarea],%%rcx) \n"
+        "add    $16*8, %%rcx \n"
+        // test write loop condition
+        "cmp    %[size], %%rcx \n"      // compare to total size
+        "jb     2b \n"
+        // test repeat loop condition
+        "dec    %[repeats] \n"          // until repeats = 0
+        "jnz    1b \n"
+        : [repeats] "+r" (repeats)
+        : [memarea] "r" (memarea), [size] "r" (size)
+        : "rax", "rcx", "cc", "memory");
+}
+
+
+
+void __ScanWrite64IndexUnrollLoop_movnti(char* memarea, size_t size, size_t repeats)
 {
     asm volatile(
         "mov    $0xC0FFEEEEBABE0000, %%rax \n" // rax = test value
@@ -237,6 +368,7 @@ void ScanWrite64IndexUnrollLoop(char* memarea, size_t size, size_t repeats)
         "movnti    %%rax, 13*8(%[memarea],%%rcx) \n"
         "movnti    %%rax, 14*8(%[memarea],%%rcx) \n"
         "movnti    %%rax, 15*8(%[memarea],%%rcx) \n"
+        "sfence \n"
         "add    $16*8, %%rcx \n"
         // test write loop condition
         "cmp    %[size], %%rcx \n"      // compare to total size
@@ -560,27 +692,23 @@ void ScanWrite256PtrUnrollLoop(char* memarea, size_t size, size_t repeats)
         "1: \n" // start of repeat loop
         "mov    %[memarea], %%rax \n"   // rax = reset loop iterator
         "2: \n" // start of write loop
-        "vmovdqa %%ymm0, 0*32(%%rax) \n"
-        "vmovdqa %%ymm0, 1*32(%%rax) \n"
-        "vmovdqa %%ymm0, 2*32(%%rax) \n"
-        "vmovdqa %%ymm0, 3*32(%%rax) \n"
-        "clwb 3(%%rax) \n"
-        "vmovdqa %%ymm0, 4*32(%%rax) \n"
-        "vmovdqa %%ymm0, 5*32(%%rax) \n"
-        "vmovdqa %%ymm0, 6*32(%%rax) \n"
-        "vmovdqa %%ymm0, 7*32(%%rax) \n"
-        "clwb 7*32(%%rax) \n"
-        "vmovdqa %%ymm0, 8*32(%%rax) \n"
-        "vmovdqa %%ymm0, 9*32(%%rax) \n"
-        "vmovdqa %%ymm0, 10*32(%%rax) \n"
-        "vmovdqa %%ymm0, 11*32(%%rax) \n"
-        "clwb 11*32(%%rax) \n"
-        "vmovdqa %%ymm0, 12*32(%%rax) \n"
-        "vmovdqa %%ymm0, 13*32(%%rax) \n"
-        "vmovdqa %%ymm0, 14*32(%%rax) \n"
-        "vmovdqa %%ymm0, 15*32(%%rax) \n"
-        "clwb 15*32(%%rax) \n"
-        "add    $16*32, %%rax \n"
+        "vmovdqa %%zmm0, 0*64(%%rax) \n"
+        "vmovdqa %%zmm0, 1*64(%%rax) \n"
+        "vmovdqa %%zmm0, 2*64(%%rax) \n"
+        "vmovdqa %%zmm0, 3*64(%%rax) \n"
+        "vmovdqa %%zmm0, 4*64(%%rax) \n"
+        "vmovdqa %%zmm0, 5*64(%%rax) \n"
+        "vmovdqa %%zmm0, 6*64(%%rax) \n"
+        "vmovdqa %%zmm0, 7*64(%%rax) \n"
+        "vmovdqa %%zmm0, 8*64(%%rax) \n"
+        "vmovdqa %%zmm0, 9*64(%%rax) \n"
+        "vmovdqa %%zmm0, 10*64(%%rax) \n"
+        "vmovdqa %%zmm0, 11*64(%%rax) \n"
+        "vmovdqa %%zmm0, 12*64(%%rax) \n"
+        "vmovdqa %%zmm0, 13*64(%%rax) \n"
+        "vmovdqa %%zmm0, 14*64(%%rax) \n"
+        "vmovdqa %%zmm0, 15*64(%%rax) \n"
+        "add    $16*64, %%rax \n"
         // test write loop condition
         "cmp    %[end], %%rax \n"       // compare to end iterator
         "jb     2b \n"
@@ -826,6 +954,28 @@ void PermRead64SimpleLoop(char* memarea, size_t, size_t repeats)
 }
 
 REGISTER_PERM(PermRead64SimpleLoop, 8);
+
+
+// follow 64-bit permutation in a simple loop (Assembler version)
+void PermRead64SimpleLoop(char* memarea, size_t, size_t repeats)
+{
+    asm volatile(
+        "1: \n" // start of repeat loop
+        "mov    %[memarea], %%rax \n"   // rax = reset iterator
+        "2: \n" // start of read loop
+        "mov    (%%rax), %%rax \n"
+        // test read loop condition
+        "cmp    %%rax, %[memarea] \n"   // compare to first iterator
+        "jne    2b \n"
+        // test repeat loop condition
+        "dec    %[repeats] \n"          // until repeats = 0
+        "jnz    1b \n"
+        : [repeats] "+r" (repeats)
+        : [memarea] "r" (memarea)
+        : "rax", "cc", "memory");
+}
+
+REGISTER_PERM(PermWrite64None, 8);
 
 // follow 64-bit permutation in an unrolled loop (Assembler version)
 void PermRead64UnrollLoop(char* memarea, size_t, size_t repeats)
